@@ -1,5 +1,6 @@
 import fs from "fs";
 import gql from "graphql-tag";
+import { Parser } from "json2csv";
 
 import { client } from "./client.mjs";
 
@@ -24,6 +25,9 @@ const query = gql`
           releases {
             totalCount
           }
+		  pullRequests(states: MERGED) {
+			totalCount
+		  }
           languages(orderBy: { field: SIZE, direction: DESC }, first: 1) {
             edges {
               node {
@@ -31,10 +35,10 @@ const query = gql`
               }
             }
           }
-          TOTAL_ISSUES: issues {
+          totalIssues: issues {
             totalCount
           }
-          CLOSED_ISSUES: issues(states: CLOSED) {
+          closedIssues: issues(states: CLOSED) {
             totalCount
           }
         }
@@ -43,9 +47,14 @@ const query = gql`
   }
 `;
 
+const secondsToDays = (time) => {
+  return parseInt(time / 86_400_000);
+};
+
 const main = async () => {
   try {
     for (let i = 0; i < 10; i++) {
+      console.log("baixando página " + i);
       const res = await client.query({
         query: query,
       });
@@ -56,7 +65,30 @@ const main = async () => {
       repos = [...repos, ...res.data.search.nodes];
     }
 
-    fs.writeFileSync("./result.json", JSON.stringify(repos));
+    const filteredRepos = repos.map((repo) => ({
+      nameWithOwner: repo.nameWithOwner,
+      url: repo.url,
+      age: secondsToDays(
+        new Date().getTime() - new Date(repo.createdAt).getTime()
+      ),
+      mergedPRsCount: repo.pullRequests.totalCount,
+      releasesCount: repo.releases.totalCount,
+      lastUpdatedSince: secondsToDays(
+        new Date().getTime() - new Date(repo.updatedAt).getTime()
+      ),
+      primaryLanguage: repo.languages.edges[0]?.node.name ?? "empty",
+      closedIssuesPercentage: repo.totalIssues.totalCount
+        ? (
+            (repo.closedIssues.totalCount / repo.totalIssues.totalCount) *
+            100
+          ).toFixed(2)
+        : 0,
+    }));
+
+    const parser = new Parser();
+    const csv = parser.parse(filteredRepos);
+
+    fs.writeFileSync("./result.csv", csv);
   } catch (error) {
     console.log(error);
   }

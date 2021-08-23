@@ -26,6 +26,7 @@
     "dotenv": "^10.0.0",
     "graphql": "^15.5.1",
     "graphql-tag": "^2.12.5",
+    "json2csv": "^5.0.6",
     "node-fetch": "^2.6.1"
   }
 }

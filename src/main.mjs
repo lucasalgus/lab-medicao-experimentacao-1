@@ -7,9 +7,11 @@ import { client } from "./client.mjs";
 let repos = [];
 let lastCursor = null;
 
-const query = gql`
+const getQuery = () => gql`
   query Repos {
-    search(query: "stars:>10000", type: REPOSITORY, first: 100, after: ${lastCursor}) {
+    search(query: "stars:>10000", type: REPOSITORY, first: 100, after: ${
+      lastCursor ? `"${lastCursor}"` : null
+    }) {
       pageInfo {
         endCursor
       }
@@ -56,7 +58,7 @@ const main = async () => {
     for (let i = 0; i < 10; i++) {
       console.log("baixando página " + i);
       const res = await client.query({
-        query: query,
+        query: getQuery(),
       });
 
       const { endCursor } = res.data.search.pageInfo;
@@ -76,7 +78,7 @@ const main = async () => {
       lastUpdatedSince: secondsToDays(
         new Date().getTime() - new Date(repo.updatedAt).getTime()
       ),
-      primaryLanguage: repo.languages.edges[0]?.node.name ?? "empty",
+      primaryLanguage: repo.languages.edges[0]?.node.name ?? "Empty",
       closedIssuesPercentage: repo.totalIssues.totalCount
         ? (
             (repo.closedIssues.totalCount / repo.totalIssues.totalCount) *
